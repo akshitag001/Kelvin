@@ -49,7 +49,20 @@ The sensor is always confirmed from the columns, never the name alone.
 
 ### Status of verification
 
-The endpoint formats above follow the FIRMS API documentation. **The live probe has not been run in this repository yet, because no MAP_KEY was available at build time.** Run `python -m kelvin probe` once a key is in `.env` and commit the generated `docs/DATA_SOURCES_PROBE.json`. If the live API differs from this page, trust the API and update this file.
+**Probed live on 2026-11-14** (`docs/DATA_SOURCES_PROBE.json`). The key status endpoint, the availability endpoint and the area CSV endpoint all work as documented above, and the MODIS and VIIRS NRT column lists match exactly. Live coverage on that date:
+
+| Source | Available |
+|---|---|
+| MODIS_SP | 2000-11-01 .. 2026-08-31 |
+| MODIS_NRT | 2026-09-01 .. 2026-11-14 |
+| VIIRS_SNPP_SP | 2012-01-20 .. 2026-07-31 |
+| VIIRS_SNPP_NRT | 2026-08-01 .. 2026-11-02 |
+| VIIRS_NOAA20_SP | 2018-04-01 .. 2026-07-31 |
+| VIIRS_NOAA20_NRT | 2026-08-01 .. 2026-11-14 |
+| VIIRS_NOAA21_SP | 2023-03-01 .. 2026-07-31 (earlier than the 2024-01-17 date in the original brief) |
+| VIIRS_NOAA21_NRT | 2024-01-17 .. 2026-11-14 |
+
+So the SP/NRT boundary is the end of July 2026 for VIIRS and the end of August 2026 for MODIS. Everything after that is provisional. Re-run `python -m kelvin probe` to refresh; trust the live API over this page.
 
 ## Other services
 
