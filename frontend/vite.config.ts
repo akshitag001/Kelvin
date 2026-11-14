@@ -2,6 +2,8 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+declare const process: { env: Record<string, string | undefined> }; // Node global; avoids pulling in @types/node
+
 export default defineConfig({
   plugins: [react()],
   server: {

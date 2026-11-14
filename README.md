@@ -181,6 +181,6 @@ Any host that runs a Python process can serve KELVIN: `python scripts/dev.py --p
 
 ## Attribution
 
-Data: **NASA FIRMS** (LANCE/EOSDIS), MODIS Collection 6.1 and VIIRS 375 m active fire detections. NASA does not endorse this project. Map tiles © OpenStreetMap contributors, © CARTO; imagery © Esri. Geocoding by Nominatim (OpenStreetMap).
+Data: **NASA FIRMS** (LANCE/EOSDIS), MODIS Collection 6.1 and VIIRS 375 m active fire detections. NASA does not endorse this project. Basemap © Esri (Light Gray Canvas), © OpenStreetMap contributors; imagery © Esri. Geocoding by Nominatim (OpenStreetMap).
 
 Hotspots are satellite detections of heat. They are not confirmed fires.

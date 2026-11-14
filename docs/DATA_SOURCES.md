@@ -68,6 +68,7 @@ So the SP/NRT boundary is the end of July 2026 for VIIRS and the end of August 2
 
 | Service | Use | Terms |
 |---|---|---|
-| CARTO Positron / OpenStreetMap tiles | Light basemap | © OpenStreetMap contributors, © CARTO |
+| Esri World Light Gray Canvas (base + labels) | Default light basemap, no key needed | © Esri, HERE, Garmin, © OpenStreetMap contributors |
+| OpenStreetMap tiles | Alternative street basemap | © OpenStreetMap contributors |
 | Esri World Imagery | Optional satellite layer | © Esri, Maxar, Earthstar Geographics |
 | Nominatim | Place search, one request per submit | OSM Nominatim usage policy |

@@ -51,10 +51,16 @@ export function MapPanel({ state, query, status, regions, update }: Props) {
   useEffect(() => {
     if (!el.current || map.current) return;
     const m = L.map(el.current, { center: [24, 40], zoom: 2, minZoom: 2, worldCopyJump: true, preferCanvas: true, zoomControl: true });
-    const light = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: "abcd", maxZoom: 19,
-    }).addTo(m);
+    // Esri Light Gray Canvas: a quiet, keyless light basemap (CARTO tiles now need an API key)
+    const esriGray = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_";
+    const grayBase = L.tileLayer(`${esriGray}Base/MapServer/tile/{z}/{y}/{x}`, {
+      attribution: "Basemap &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors", maxZoom: 16,
+    });
+    const labelPane = m.createPane("labels"); // place names above the hotspot dots, never blocking clicks
+    labelPane.style.zIndex = "450";
+    labelPane.style.pointerEvents = "none";
+    const grayLabels = L.tileLayer(`${esriGray}Reference/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 16, pane: "labels" });
+    const light = L.layerGroup([grayBase, grayLabels]).addTo(m);
     const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19,
     });
@@ -64,7 +70,7 @@ export function MapPanel({ state, query, status, regions, update }: Props) {
     covGroup.current.addTo(m);
     hotGroup.current.addTo(m);
     aoiGroup.current.addTo(m);
-    L.control.layers({ "Light (OSM)": light, "OpenStreetMap": osm, "Satellite": sat },
+    L.control.layers({ "Light gray": light, "OpenStreetMap": osm, "Satellite": sat },
       { "Loaded coverage": covGroup.current, "Hotspots": hotGroup.current }, { position: "topright" }).addTo(m);
     L.control.scale({ imperial: false, position: "bottomright" }).addTo(m);
     map.current = m;
@@ -174,7 +180,7 @@ export function MapPanel({ state, query, status, regions, update }: Props) {
         const [lon, lat] = f.geometry.coordinates;
         const n = p.n ?? 1;
         const fill = colorBy === "frp" ? frpC(Math.max(1, (p.frp ?? 0) / n)) : nC(n);
-        L.circleMarker([lat, lon], { renderer, radius: 2.5 + 7 * Math.sqrt(n / nMax), weight: 0, fillColor: fill, fillOpacity: 0.8 })
+        L.circleMarker([lat, lon], { renderer, radius: 1.5 + 4.5 * Math.sqrt(n / nMax), weight: 0, fillColor: fill, fillOpacity: 0.75 })
           .bindTooltip(`${n.toLocaleString()} detections`, { direction: "top" })
           .addTo(g);
       }
