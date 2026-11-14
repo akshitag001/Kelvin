@@ -77,10 +77,11 @@ export function Harmonization({ s }: { s: Summary }) {
               {viirsStart && <ReferenceLine x={viirsStart} stroke="#0E9384" strokeDasharray="3 3" label={{ value: "VIIRS starts", fontSize: 10.5, fill: "#0E9384", position: "insideTopLeft" }} />}
               <ReferenceLine x={switchYm} stroke="#0B1222" strokeDasharray="3 3" label={{ value: "switch to k·VIIRS", fontSize: 10.5, fill: "#0B1222", position: "insideTopRight" }} />
               <Area dataKey="band" name="Harmonized 90% band" fill={SERIES.band} fillOpacity={0.35} stroke="none" isAnimationActive={false} />
-              <Line dataKey="modis" name="MODIS native" stroke={SERIES.modis} strokeWidth={1.5} dot={false} isAnimationActive={false} />
-              <Line dataKey="viirs" name="VIIRS native (unscaled)" stroke={SERIES.viirs} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+              {/* harmonized first (wide), natives on top (thin): before the switch harmonized equals MODIS, so both stay visible */}
+              <Line dataKey="harmonized" name="Harmonized" stroke={SERIES.harmonized} strokeWidth={3.2} strokeOpacity={0.55} dot={false} isAnimationActive={false} />
               <Line dataKey="stitch" name="Raw stitch (the artifact)" stroke="#94A3B8" strokeDasharray="2 3" strokeWidth={1.2} dot={false} isAnimationActive={false} />
-              <Line dataKey="harmonized" name="Harmonized" stroke={SERIES.harmonized} strokeWidth={2.4} dot={false} isAnimationActive={false} />
+              <Line dataKey="modis" name="MODIS native" stroke={SERIES.modis} strokeWidth={1.3} dot={false} isAnimationActive={false} />
+              <Line dataKey="viirs" name="VIIRS native (unscaled)" stroke={SERIES.viirs} strokeWidth={1.3} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

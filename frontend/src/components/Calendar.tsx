@@ -114,7 +114,7 @@ export function Calendar({ s, selected, onSelect }: Props) {
           <div role="grid" aria-labelledby="cal-title" aria-rowcount={years.length + 1} aria-colcount={14}
             className="min-w-[700px] text-[11px]">
             <div role="row" className="grid grid-cols-[44px_repeat(12,minmax(0,1fr))_64px] gap-[3px] pb-1">
-              <span role="columnheader" className="sr-only">Year</span>
+              <span role="columnheader" aria-label="Year" />
               {MON.map((m) => <span key={m} role="columnheader" className="text-center font-medium text-ink-4">{m}</span>)}
               <span role="columnheader" className="text-center font-medium text-ink-4">Year</span>
             </div>
