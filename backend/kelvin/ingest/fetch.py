@@ -27,59 +27,125 @@ from kelvin import config
 BASE = "https://firms.modaps.eosdis.nasa.gov"
 
 
+class _Key:
+    def __init__(self, value: str):
+        self.value = value
+        self.pause_until = 0.0
+        self.calls = 0
+
+    @property
+    def tag(self) -> str:  # for logs; never print a whole key
+        return f"key …{self.value[-4:]}"
+
+
 class Firms:
-    def __init__(self, key: str, timeout: float | None = None):
+    """FIRMS client over one or more MAP_KEYs.
+
+    Requests rotate between keys (round robin). FIRMS meters each key at ~5000 transactions
+    per 10 minutes, and one area request can cost several. Over the limit it answers
+    "Invalid MAP_KEY" (HTTP 400/401) rather than 429, so every 20 calls a key's usage is
+    checked; a key near its limit is rested for 60 s while the other keys carry on. Workers
+    only wait when every key is resting.
+    """
+
+    def __init__(self, keys: str | list[str], timeout: float | None = None):
         cfg = config.settings()["fetch"]
-        self.key = key
+        vals = [keys] if isinstance(keys, str) else list(keys)
+        self.keys = [_Key(k) for k in vals if k]
+        if not self.keys:
+            raise RuntimeError("No FIRMS MAP_KEY configured.")
         self.retries = int(cfg["max_retries"])
         self.client = httpx.Client(base_url=BASE, timeout=timeout or float(cfg["timeout_seconds"]),
                                    headers={"User-Agent": "KELVIN/1.0 (NASA Space Apps 2026)"})
-        self._pause_until = 0.0
         self._lock = threading.Lock()
-        self._calls = 0
-        self.key_ok = False  # set after the first successful call
+        self._rr = 0
+        self.log: Callable[[str], None] = print
 
-    # FIRMS meters a key at ~5000 transactions / 10 min, and one area request can cost
-    # several transactions. Over the limit it answers "Invalid MAP_KEY" (HTTP 400), not 429,
-    # so every few calls we look at the key's usage and pause all workers before the limit.
-    def _budget_check(self) -> None:
+    @property
+    def key(self) -> str:
+        return self.keys[0].value
+
+    # ---------------------------------------------------------------- key budget
+    def key_status(self, k: _Key | None = None) -> dict:
+        k = k or self.keys[0]
+        try:
+            r = self.client.get(f"/mapserver/mapkey_status/?MAP_KEY={k.value}")
+            return json.loads(r.text)
+        except (ValueError, httpx.HTTPError) as exc:
+            return {"error": str(exc)}
+
+    def _usage(self, k: _Key) -> float | None:
+        st = self.key_status(k)
+        used, limit = st.get("current_transactions"), st.get("transaction_limit")
+        if not isinstance(used, (int, float)) or not limit:
+            return None
+        return used / limit
+
+    def _rest(self, k: _Key, seconds: float, why: str) -> None:
         with self._lock:
-            self._calls += 1
-            if self._calls % 20:
-                return
-        self._wait_for_budget(high=0.85)
+            k.pause_until = max(k.pause_until, time.time() + seconds)
+        self.log(f"  {k.tag} {why}; resting it {seconds:.0f} s")
 
-    def _wait_for_budget(self, high: float, log: Callable[[str], None] | None = None) -> None:
+    def _pick(self) -> _Key:
+        """Next key in rotation that is not resting; waits only if every key is resting."""
         while True:
-            st = self.key_status()
-            used, limit = st.get("current_transactions"), st.get("transaction_limit")
-            if not isinstance(used, (int, float)) or not limit or used < high * limit:
-                return
             with self._lock:
-                self._pause_until = max(self._pause_until, time.time() + 60)
-            (log or print)(f"  FIRMS key at {used}/{limit} transactions; pausing 60 s for the 10-minute window to roll over")
+                now = time.time()
+                n = len(self.keys)
+                for i in range(n):
+                    k = self.keys[(self._rr + i) % n]
+                    if k.pause_until <= now:
+                        self._rr = (self._rr + i + 1) % n
+                        k.calls += 1
+                        check = k.calls % 20 == 0
+                        break
+                else:
+                    wake = min(k.pause_until for k in self.keys)
+                    k = None
+            if k is None:
+                time.sleep(max(0.5, wake - time.time()))
+                continue
+            if check:
+                u = self._usage(k)
+                if u is not None and u >= 0.85:
+                    self._rest(k, 60, f"at {u:.0%} of its 10-minute budget")
+                    continue
+            return k
+
+    def wait_for_budget(self, high: float = 0.5, log: Callable[[str], None] | None = None) -> None:
+        """Block until at least one key is below `high` of its budget (used before a run)."""
+        log = log or self.log
+        while True:
+            usage = [(k, self._usage(k)) for k in self.keys]
+            if any(u is None or u < high for _, u in usage):
+                for k, u in usage:
+                    if u is not None and u >= high:
+                        k.pause_until = time.time() + 60
+                return
+            log("  all FIRMS keys busy (" + ", ".join(f"{k.tag} {u:.0%}" for k, u in usage) + "); waiting 60 s")
             time.sleep(60)
 
-    def _get(self, path: str) -> str:
+    # ---------------------------------------------------------------- requests
+    def _get(self, template: str) -> str:
+        """GET a path containing '{key}'; the key is chosen per attempt."""
         delay = 2.0
-        is_status = path.startswith("/mapserver/mapkey_status")
-        for attempt in range(self.retries + 1):
-            wait = self._pause_until - time.time()
-            if wait > 0 and not is_status:
-                time.sleep(wait)
+        for attempt in range(self.retries + 4):
+            k = self._pick()
             try:
-                r = self.client.get(path)
+                r = self.client.get(template.format(key=k.value))
                 body = r.text
-                over = r.status_code == 429 or "exceeding allowed transaction limit" in body.lower()
-                if not over and not is_status and "invalid map_key" in body.lower():
-                    st = self.key_status()  # a known-good key turning "invalid" = the limit was hit
-                    used, limit = st.get("current_transactions"), st.get("transaction_limit")
-                    over = isinstance(used, (int, float)) and bool(limit) and used >= 0.95 * limit
+                low = body.lower()
+                over = r.status_code == 429 or "exceeding allowed transaction limit" in low
+                if not over and "invalid map_key" in low:
+                    u = self._usage(k)  # a working key turning "invalid" = it hit its limit
+                    if u is None:
+                        raise RuntimeError(f"FIRMS says {k.tag} is invalid. Check FIRMS_MAP_KEY in .env.")
+                    over = u >= 0.9
+                    if not over:
+                        raise RuntimeError(f"FIRMS rejected {k.tag}: {body[:120]}")
                 if over:
-                    self._wait_for_budget(high=0.6)
+                    self._rest(k, 60, "hit the transaction limit")
                     continue
-                if r.status_code == 200 and not is_status:
-                    self.key_ok = True
                 if r.status_code >= 500:
                     raise httpx.HTTPStatusError("server error", request=r.request, response=r)
                 if r.status_code != 200:
@@ -88,25 +154,18 @@ class Firms:
                     raise RuntimeError(f"FIRMS rejected the request: {body[:200]}")
                 return body
             except (httpx.TransportError, httpx.HTTPStatusError):
-                if attempt == self.retries:
+                if attempt >= self.retries:
                     raise
                 time.sleep(delay + random.random())
                 delay = min(delay * 2, 60)
-        raise RuntimeError(f"FIRMS: gave up after {self.retries} retries on {path.split('/')[4] if '/' in path else path}")
+        raise RuntimeError("FIRMS: gave up after repeated retries")
 
     def availability(self) -> pd.DataFrame:
-        return pd.read_csv(io.StringIO(self._get(f"/api/data_availability/csv/{self.key}/ALL")))
-
-    def key_status(self) -> dict:
-        try:
-            return json.loads(self._get(f"/mapserver/mapkey_status/?MAP_KEY={self.key}"))
-        except (ValueError, RuntimeError) as exc:
-            return {"error": str(exc)}
+        return pd.read_csv(io.StringIO(self._get("/api/data_availability/csv/{key}/ALL")))
 
     def area(self, source: str, bbox: tuple[float, float, float, float], start: date, days: int) -> str:
-        self._budget_check()
         b = ",".join(f"{v:g}" for v in bbox)
-        return self._get(f"/api/area/csv/{self.key}/{source}/{b}/{days}/{start.isoformat()}")
+        return self._get(f"/api/area/csv/{{key}}/{source}/{b}/{days}/{start.isoformat()}")
 
 
 def tiles(bbox: tuple[float, float, float, float], size: float) -> list[tuple[float, float, float, float]]:
@@ -137,9 +196,11 @@ def _avail_ranges(av: pd.DataFrame) -> dict[str, tuple[date, date]]:
 
 def probe(log: Callable[[str], None] = print) -> int:
     """Check the key, list availability, sample columns; write docs/DATA_SOURCES_PROBE.json."""
-    f = Firms(config.map_key() or "")
+    f = Firms(config.map_keys())
+    f.log = log
+    for k in f.keys:
+        log(f"Status of {k.tag}: {f.key_status(k)}")
     status = f.key_status()
-    log(f"Key status: {status}")
     av = _avail_ranges(f.availability())
     for k, (a, b) in sorted(av.items()):
         log(f"  {k:<20} {a} .. {b}")
@@ -161,8 +222,10 @@ def probe(log: Callable[[str], None] = print) -> int:
 def run(region_ids: list[str] | None = None, sources: list[str] | None = None, start: str | None = None, end: str | None = None,
         max_priority: int = 0, nrt_only: bool = False, days_back: int = 15, log: Callable[[str], None] = print) -> int:
     cfg = config.settings()["fetch"]
-    f = Firms(config.map_key() or "")
-    f._wait_for_budget(high=0.5, log=log)  # over the limit, FIRMS rejects even the availability call
+    f = Firms(config.map_keys())
+    f.log = log
+    log(f"Using {len(f.keys)} FIRMS key(s), rotating: " + ", ".join(k.tag for k in f.keys))
+    f.wait_for_budget(high=0.5, log=log)  # over the limit, FIRMS rejects even the availability call
     av = _avail_ranges(f.availability())
     regs = config.regions()
     ids = region_ids or [rid for rid, r in sorted(regs.items(), key=lambda x: x[1].priority) if r.priority <= max_priority]
@@ -195,7 +258,6 @@ def run(region_ids: list[str] | None = None, sources: list[str] | None = None, s
     log(f"{len(jobs):,} chunks to download for {', '.join(ids)} with {cfg['workers']} workers")
     if not jobs:
         return 0
-    f._wait_for_budget(high=0.5, log=log)  # start with room in the 10-minute window
     done, failed, rows, t0 = 0, 0, 0, time.time()
 
     def work(job):

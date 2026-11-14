@@ -40,9 +40,20 @@ def detections_dir() -> Path:
     return processed_dir() / "detections"
 
 
+def map_keys() -> list[str]:
+    """All configured FIRMS keys. FIRMS_MAP_KEY may hold several, separated by commas;
+    FIRMS_MAP_KEYS is accepted too. The fetcher rotates between them."""
+    raw = ",".join(os.environ.get(v, "") for v in ("FIRMS_MAP_KEY", "FIRMS_MAP_KEYS"))
+    out: list[str] = []
+    for k in (p.strip() for p in raw.split(",")):
+        if k and k not in out:
+            out.append(k)
+    return out
+
+
 def map_key() -> str | None:
-    key = (os.environ.get("FIRMS_MAP_KEY") or "").strip()
-    return key or None
+    keys = map_keys()
+    return keys[0] if keys else None
 
 
 @dataclass(frozen=True)

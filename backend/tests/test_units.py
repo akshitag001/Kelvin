@@ -151,6 +151,30 @@ def test_cv_metrics_perfect():
     assert m["wmape"] == 0 and m["r2"] == 1 and m["spearman"] == pytest.approx(1.0)
 
 
+# ---------------------------------------------------------------- FIRMS key rotation
+def test_keys_parse_and_rotate(monkeypatch):
+    from kelvin import config
+    from kelvin.ingest.fetch import Firms
+
+    monkeypatch.setenv("FIRMS_MAP_KEY", " aaaa1111 , bbbb2222,aaaa1111")
+    monkeypatch.delenv("FIRMS_MAP_KEYS", raising=False)
+    assert config.map_keys() == ["aaaa1111", "bbbb2222"]
+
+    f = Firms(config.map_keys())
+    f.log = lambda *_: None
+    usage = {"aaaa1111": 0.2, "bbbb2222": 0.2}
+    monkeypatch.setattr(f, "_usage", lambda k: usage[k.value])
+    picks = [f._pick().value for _ in range(6)]
+    assert picks == ["aaaa1111", "bbbb2222"] * 3  # round robin
+
+    usage["aaaa1111"] = 0.95  # first key near its limit: it rests, the second carries on
+    for k in f.keys:
+        k.calls = 19  # next pick triggers a budget check
+    nxt = [f._pick().value for _ in range(3)]
+    assert nxt == ["bbbb2222"] * 3
+    assert f.keys[0].pause_until > 0
+
+
 # ---------------------------------------------------------------- AOI geometry
 def test_aoi_inputs_and_validation():
     a = aoi.from_bbox(75, 30, 76, 31)
