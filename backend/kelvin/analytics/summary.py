@@ -346,6 +346,14 @@ def _summarize(aoi: Aoi, p: Params) -> dict:
         warnings.append({"code": "demo", "level": "warn", "text": "SYNTHETIC DEMO DATA. These are not real fire detections."})
 
     current = current_standing(aoi, p, b0, b1) if frac > 0.001 else None
+    if current and current.get("median") is not None:
+        # Off-season guard: when the same days are usually near-silent, a ratio like "12x"
+        # can come from a handful of detections. Flag it so the UI does not shout.
+        peak_med = max((b.get("median") or 0) for b in by_cal)
+        typical = peak_med * current["days"] / 30.4
+        current["off_season"] = bool(typical > 0 and current["median"] < 0.1 * typical)
+        if current["off_season"]:
+            current["headline"] += " Off-season: counts are small, so ratios swing widely."
     return {
         "aoi": {"area_km2": area, "bbox": list(aoi.bounds), "cells": int(len(cells)), "coverage_fraction": frac,
                 "centroid": [aoi.geom.centroid.x, aoi.geom.centroid.y]},
@@ -436,9 +444,13 @@ def leaderboard() -> list[dict]:
             out.append({"id": rid, "name": r.name, "story": r.story, "blurb": r.blurb, "bbox": list(r.bbox),
                         "value": c["value"], "median": c["median"], "ratio": c["ratio"], "percentile": c["percentile"],
                         "cls": c["cls"], "label": c["label"], "headline": c["headline"], "provisional": c["provisional"],
+                        "off_season": c.get("off_season", False),
                         "peak_month": s["seasonality"]["peak_month"], "season": s["seasonality"]["season"]["months"],
                         "spark": [m["value"] for m in s["monthly"][-24:]]})
-        out.sort(key=lambda x: (-(x["percentile"] if x["percentile"] is not None else -1), -(x["ratio"] or 0)))
+        # most unusual = furthest from normal in either direction (percentile distance from 50);
+        # off-season ratios are noisy, so those regions rank after the in-season ones
+        out.sort(key=lambda x: (x["off_season"], -(abs(x["percentile"] - 50) if x["percentile"] is not None else -1),
+                                -abs((x["ratio"] or 1) - 1)))
         for i, row in enumerate(out):
             row["rank"] = i + 1
         return out

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Confidence, Metric, Region, Status, View } from "../lib/api";
+import { geocode, placeBbox, placeName, type Place } from "../lib/geo";
 import type { AppState } from "../lib/state";
 import { Logo } from "./Logo";
 import { Segmented } from "./ui";
@@ -12,11 +13,10 @@ interface Props {
   onHome: () => void;
   onMethod: () => void;
   onLimits: () => void;
+  onPalette: () => void;
 }
 
-interface Place { display_name: string; boundingbox: [string, string, string, string]; lat: string; lon: string }
-
-export function Header({ state, status, regions, update, onHome, onMethod, onLimits }: Props) {
+export function Header({ state, status, regions, update, onHome, onMethod, onLimits, onPalette }: Props) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Place[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,10 +36,7 @@ export function Header({ state, status, regions, update, onHome, onMethod, onLim
     if (q.trim().length < 2) return;
     setBusy(true);
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(q)}`, {
-        headers: { "Accept-Language": "en" },
-      });
-      setResults(await r.json());
+      setResults(await geocode(q));
     } catch {
       setResults([]);
     } finally {
@@ -48,13 +45,7 @@ export function Header({ state, status, regions, update, onHome, onMethod, onLim
   }
 
   function pick(p: Place) {
-    const [s, n, w, e] = p.boundingbox.map(Number);
-    // pad tiny results (towns) to a useful ~50 km window
-    const padLat = Math.max(0, (0.45 - (n - s)) / 2), padLon = Math.max(0, (0.45 - (e - w)) / 2);
-    update({
-      aoi: { kind: "bbox", bbox: [w - padLon, s - padLat, e + padLon, n + padLat].map((v) => Math.round(v * 1e4) / 1e4) as [number, number, number, number] },
-      name: p.display_name.split(",").slice(0, 2).join(","), workspace: true, month: undefined,
-    });
+    update({ aoi: { kind: "bbox", bbox: placeBbox(p) }, name: placeName(p), workspace: true, month: undefined });
     setResults(null);
     setQ("");
   }
@@ -123,6 +114,9 @@ export function Header({ state, status, regions, update, onHome, onMethod, onLim
         </div>
 
         <nav className="ml-auto flex items-center gap-1" aria-label="Help">
+          <button className="btn-ghost hidden gap-2 md:inline-flex" onClick={onPalette} aria-keyshortcuts="Control+K Meta+K" title="Command palette">
+            <span aria-hidden>⌘</span> Jump to… <kbd>Ctrl K</kbd>
+          </button>
           <button className="btn-quiet hidden sm:inline-flex" onClick={onMethod}>Methodology</button>
           <button className="btn-quiet hidden sm:inline-flex" onClick={onLimits}>Limitations</button>
           <button className="btn-ghost" onClick={share} aria-live="polite">{copied ? "✓ Link copied" : "Share link"}</button>

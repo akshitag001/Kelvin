@@ -9,7 +9,7 @@ export const TABS: { id: Tab; label: string }[] = [
   { id: "trends", label: "Trends & rankings" },
   { id: "harmonization", label: "Harmonization" },
   { id: "jukebox", label: "Fire Jukebox" },
-  { id: "briefing", label: "Briefing & downloads" },
+  { id: "briefing", label: "Briefing" },
 ];
 
 export interface AppState {

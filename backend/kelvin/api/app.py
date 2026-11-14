@@ -331,6 +331,50 @@ def diagnostics(region: str = Query("all"), metric: Literal["cells", "detections
     })
 
 
+@app.get("/api/globe")
+def globe(limit: int = Query(2500, ge=100, le=6000)):
+    """Hotspot activity for the home-page globe, plus a last-7-days telemetry strip.
+
+    points: [lon, lat, weight, recent] on a 0.25-degree grid over the last 12 months.
+    weight = MODIS + VIIRS cell-days (a visual activity measure, not harmonized);
+    recent = the cell was active in the latest month of the record.
+    """
+    _need_db()
+
+    def run() -> dict:
+        from datetime import timedelta
+
+        m = db.meta()
+        end = date.fromisoformat(m["data_end"])
+        ym_end = end.year * 100 + end.month
+        ym0 = (end.year - 1) * 100 + end.month  # exclusive: the last 12 months
+        cur = db.connect()
+        pts = cur.execute("""
+            SELECT round(c.lon * 4) / 4 AS lon, round(c.lat * 4) / 4 AS lat,
+                   sum(m.cd_modis + m.cd_viirs)::DOUBLE AS w, max(m.ym) AS last
+            FROM cellmonth m JOIN cells c USING (cell_id)
+            WHERE m.conf = 1 AND m.ym > ?
+            GROUP BY 1, 2 ORDER BY w DESC LIMIT ?""", [ym0, limit]).fetchall()
+        start7 = end - timedelta(days=6)
+        sats = config.SATELLITES
+        sums = ", ".join(f"coalesce(sum(nd_{config.SAT_COL[s]}), 0)::BIGINT" for s in sats)
+        row = cur.execute(f"SELECT {sums}, count(*) FROM cellday WHERE conf = 1 AND date >= ?", [start7]).fetchone()
+        by_sat = {s: int(v) for s, v in zip(sats, row[:-1])}
+        loaded = m.get("regions", {})
+        return {
+            "as_of": end,
+            "window_months": 12,
+            "max": max((p[2] for p in pts), default=1.0),
+            "points": [[float(p[0]), float(p[1]), float(p[2]), p[3] == ym_end] for p in pts],
+            "last7": {"from": start7, "to": end, "detections": sum(by_sat.values()), "active_cells": int(row[-1]),
+                      "by_satellite": by_sat},
+            "regions": [{"id": rid, "name": r.name, "bbox": list(r.bbox)} for rid, r in config.regions().items()
+                        if loaded.get(rid, {}).get("loaded")],
+        }
+
+    return _ok(summ._cache.get_or_set(f"{aoimod.stamp()}:globe:{limit}", run))
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True}

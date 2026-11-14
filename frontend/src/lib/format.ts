@@ -44,6 +44,11 @@ export function monthRange(months: number[]): string {
   return months.length === 1 ? MONTHS[months[0] - 1] : `${MON[months[0] - 1]}–${MON[months[months.length - 1] - 1]}`;
 }
 
+/** Headless browsers (README screenshots) render final states instead of mid-animation frames. */
+export function isHeadless(): boolean {
+  return typeof navigator !== "undefined" && /Headless/i.test(navigator.userAgent);
+}
+
 export function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }

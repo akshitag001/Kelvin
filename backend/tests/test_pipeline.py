@@ -144,6 +144,20 @@ def test_leaderboard(client):
     assert lb["regions"][0]["id"] == "punjab_haryana" and lb["regions"][0]["rank"] == 1
 
 
+def test_globe(client):
+    g = client.get("/api/globe?limit=300").json()
+    assert 0 < len(g["points"]) <= 300
+    lon, lat, w, recent = g["points"][0]
+    assert 73 <= lon <= 78 and 27 <= lat <= 33 and w == g["max"]
+    assert g["last7"]["to"] == "2025-06-20" and g["last7"]["detections"] == sum(g["last7"]["by_satellite"].values())
+    assert [r["id"] for r in g["regions"]] == ["punjab_haryana"]
+
+
+def test_off_season_flag(client):
+    c = _summary(client)["current"]
+    assert isinstance(c["off_season"], bool)
+
+
 def test_briefing(client):
     b = client.post("/api/aoi/briefing", json=PUNJAB).json()
     assert "Punjab" in b["title"] and "TREND." in b["text"] and "SYNTHETIC" in b["text"]

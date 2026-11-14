@@ -72,9 +72,9 @@ export function Workspace({ state, status, regions, update }: Props) {
               {TABS.map((t, i) => (
                 <button key={t.id} ref={(el) => (tabRefs.current[i] = el)} role="tab" id={`tab-${t.id}`} aria-selected={state.tab === t.id}
                   aria-controls={`panel-${t.id}`} tabIndex={state.tab === t.id ? 0 : -1} onClick={() => update({ tab: t.id as Tab }, true)}
-                  className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition ${
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-[13px] font-medium transition ${
                     state.tab === t.id ? "bg-ink text-white shadow" : "text-ink-3 hover:bg-haze-100 hover:text-ink"}`}>
-                  {t.label}
+                  <TabIcon id={t.id as Tab} />{t.label}
                 </button>
               ))}
             </div>
@@ -101,6 +101,23 @@ export function Workspace({ state, status, regions, update }: Props) {
         )}
       </div>
     </main>
+  );
+}
+
+const TAB_PATHS: Record<Tab, string> = {
+  calendar: "M3 5h14v12H3zM3 9h14M7 3v4M13 3v4",
+  seasons: "M2 14c3 0 3-8 6-8s3 10 6 10 3-6 4-6",
+  trends: "M3 16V9M8 16V5M13 16v-5M18 16V3",
+  harmonization: "M2 7h7l2 6h7M2 13h5M13 7h5",
+  jukebox: "M7 15V4l9-2v11M7 15a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM16 13a2 2 0 1 1-4 0 2 2 0 0 1 4 0z",
+  briefing: "M5 2h7l4 4v12H5zM12 2v4h4M8 10h5M8 13h5",
+};
+
+function TabIcon({ id }: { id: Tab }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={TAB_PATHS[id]} />
+    </svg>
   );
 }
 

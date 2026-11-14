@@ -39,6 +39,14 @@ export interface Current {
   ym: string; year: number; month: number; as_of: string; days: number; full_month: boolean;
   value: number; provisional: boolean; headline: string; label: string; baseline_years: [number, number];
   median: number | null; ratio: number | null; percentile: number | null; z: number | null; cls: AnomalyClass; n: number;
+  off_season?: boolean;
+}
+
+export interface GlobeData {
+  as_of: string; window_months: number; max: number;
+  points: [number, number, number, boolean][];
+  last7: { from: string; to: string; detections: number; active_cells: number; by_satellite: Record<string, number> };
+  regions: { id: string; name: string; bbox: [number, number, number, number] }[];
 }
 
 export interface Summary {
@@ -99,6 +107,7 @@ export interface LeaderRow {
   id: string; name: string; story: string | null; blurb: string; bbox: [number, number, number, number];
   value: number; median: number | null; ratio: number | null; percentile: number | null; cls: AnomalyClass; label: string;
   headline: string; provisional: boolean; peak_month: number | null; season: number[]; spark: (number | null)[]; rank: number;
+  off_season?: boolean;
 }
 
 export interface Diagnostics {
@@ -157,6 +166,7 @@ export const api = {
   status: () => request<Status>("/api/status"),
   regions: () => request<Region[]>("/api/regions"),
   leaderboard: () => request<{ as_of: string; regions: LeaderRow[] }>("/api/leaderboard"),
+  globe: () => request<GlobeData>("/api/globe"),
   summary: (q: Query, s?: AbortSignal) => post<Summary>("/api/aoi/summary", body(q), s),
   daily: (q: Query, month: string, s?: AbortSignal) => post<Daily>("/api/aoi/daily", body(q, { month }), s),
   briefing: (q: Query, s?: AbortSignal) => post<{ title: string; paragraphs: string[]; text: string }>("/api/aoi/briefing", body(q), s),

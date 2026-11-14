@@ -16,7 +16,7 @@
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Leaflet](https://img.shields.io/badge/Leaflet-199900?logo=leaflet&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-50%20passing-2EA44F)
+![Tests](https://img.shields.io/badge/tests-52%20passing-2EA44F)
 
 *Challenge: **MODIS and VIIRS Hot Spots***
 
@@ -26,6 +26,22 @@
   <img src="docs/screenshots/home.png" alt="KELVIN home screen: animated satellites around Earth and a leaderboard of the most unusual fire regions right now" width="100%" />
 </p>
 
+> [!TIP]
+> Everything above and below is **real NASA FIRMS data**: 5.8 million MODIS and VIIRS detections over Punjab–Haryana, Uttarakhand and central Odisha, Nov 2000 to Nov 2026.
+
+### 📈 Real results
+
+| Region | Fire season (peak) | k (VIIRS → MODIS) | Raw VIIRS vs MODIS, 2013–2020 | After harmonization | Validation error* | Rank correlation* |
+|---|---|---|---|---|---|---|
+| Punjab–Haryana | Oct–Feb (**October**) | 0.25 [0.23–0.27] | 4.0× | 1.02× | 12.8% | 0.98 |
+| Uttarakhand | Feb–Jun (**April**) | 0.18 [0.16–0.20] | 5.6× | 1.02× | 12.9% | 0.98 |
+| Central Odisha | Feb–Apr (**March**) | 0.15 [0.13–0.17] | 6.9× | 1.02× | 13.9% | 0.99 |
+
+<sub>*Leave-one-year-out cross-validation of monthly series, 2012–2021: weighted absolute error and Spearman correlation. k shown with its bootstrap 90% interval.</sub>
+
+Without harmonization, the record says fire activity jumped 4–7× in 2012. That jump is the satellites, not the fires, and KELVIN removes it.
+
+---
 
 ## 🔥 The problem in one picture
 
@@ -104,6 +120,29 @@ The record as sound, all synthesized in the browser. **"Hear the sensor jump"** 
 <img src="docs/screenshots/briefing.png" alt="Briefing text and download buttons" width="100%" />
 
 </details>
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 🌍 Live fire globe
+A real-data globe on the home screen: every active area of the last 12 months, recent fires glowing. It turns slowly; drag it or use the arrow keys.
+
+</td>
+<td width="33%" valign="top">
+
+### ⌨️ Ctrl + K
+A command palette to jump to any region, tab, data view or metric, or search any place on Earth, without touching the mouse.
+
+</td>
+<td width="33%" valign="top">
+
+### ⏯️ Map time-lapse
+Play any year month by month on the map and watch the fire season sweep across the region, with live detection counts.
+
+</td>
+</tr>
+</table>
 
 **Also included:** draw a rectangle, polygon or circle; type coordinates; upload GeoJSON; or search any place · streaming **CSV of every hotspot** · chart PNG export · **shareable links** (the whole view lives in the URL) · a home-screen **leaderboard** of the most unusual regions · full **keyboard** and **screen-reader** support · colorblind-safe ramps.
 
@@ -262,7 +301,7 @@ python -m kelvin refresh            # later: top up the last 15 days of near-rea
 | Map | Leaflet · leaflet-draw |
 | Charts | Recharts · d3-scale · d3-scale-chromatic (YlOrRd, Cividis, PuOr) |
 | Sound | Web Audio API: synthesized, no audio files |
-| Tests | pytest (43) · Vitest + Testing Library (7) |
+| Tests | pytest (45) · Vitest + Testing Library (7) |
 
 <details>
 <summary><b>Our API endpoints</b></summary>
@@ -304,9 +343,10 @@ docs/             METHODOLOGY · DECISIONS · DATA_SOURCES · DEMO_SCRIPT · AI_
 | | |
 |---|---|
 | Harmonization recovers a known answer | ✅ Automated test on synthetic data |
-| Pipeline, API, CSV, accessibility | ✅ 50 automated tests |
+| Pipeline, API, CSV, accessibility | ✅ 52 automated tests |
 | Live FIRMS API matches our code | ✅ Probed 14 Nov 2026 ([docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)) |
-| Real-data calibration and validation | ⏳ Download running for Punjab–Haryana, Uttarakhand and Odisha; the numbers will be published here |
+| Real-data calibration and validation | ✅ 5.8M real detections, 3 regions; 12.8–13.9% out-of-sample error ([results](#-real-results)) |
+| Off-season guard | ✅ Tiny counts in the off-season are flagged, so "12× the median" from a handful of fires is never presented as an alarm |
 
 **Limitations we show in the app:** a hotspot is a detection of heat, not a burned area or a cause · clouds and smoke hide fires · polar orbiters pass only a few times a day · VIIRS sees small fires MODIS can't · static heat sources are removed only where FIRMS flags them · recent data is provisional.
 

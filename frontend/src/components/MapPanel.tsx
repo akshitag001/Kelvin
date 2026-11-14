@@ -47,6 +47,14 @@ export function MapPanel({ state, query, status, regions, update }: Props) {
   const updateRef = useRef(update);
   updateRef.current = update;
 
+  // ---- time-lapse: step through the 12 months of a year, one hotspot frame per month
+  const lastYear = status?.data_end ? Number(status.data_end.slice(0, 4)) : new Date().getFullYear();
+  const firstYear = status?.data_start ? Number(status.data_start.slice(0, 4)) + 1 : 2001;
+  const [lapse, setLapse] = useState<{ year: number; idx: number; playing: boolean } | null>(null);
+  const [hotFor, setHotFor] = useState<string | undefined>();
+  const lapseMonth = lapse ? `${lapse.year}-${String(lapse.idx + 1).padStart(2, "0")}` : undefined;
+  const viewMonth = lapseMonth ?? state.month;
+
   // ---- create the map once
   useEffect(() => {
     if (!el.current || map.current) return;
@@ -139,17 +147,25 @@ export function MapPanel({ state, query, status, regions, update }: Props) {
   }, [aoiKey, regions]);
 
   // ---- hotspots for the selected month (or the date range)
-  const qKey = query ? JSON.stringify({ a: query.aoi, s: query.start, e: query.end, c: query.confidence, m: state.month }) : "";
+  const qKey = query ? JSON.stringify({ a: query.aoi, s: query.start, e: query.end, c: query.confidence, m: viewMonth }) : "";
   useEffect(() => {
     if (!query) { setHot(null); return; }
     const ctrl = new AbortController();
     setHotErr(null);
-    api.hotspots(query, { month: state.month }, ctrl.signal).then(setHot).catch((e) => {
+    api.hotspots(query, { month: viewMonth }, ctrl.signal).then((r) => { setHot(r); setHotFor(viewMonth); }).catch((e) => {
       if (e.name !== "AbortError") setHotErr(e.message);
     });
     return () => ctrl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qKey]);
+
+  // advance the time-lapse once the current frame has loaded
+  useEffect(() => {
+    if (!lapse?.playing || hotFor !== lapseMonth) return;
+    const id = window.setTimeout(() => setLapse((l) => l && (l.idx >= 11 ? { ...l, playing: false } : { ...l, idx: l.idx + 1 })), 1150);
+    return () => window.clearTimeout(id);
+  }, [lapse, hotFor, lapseMonth]);
+  useEffect(() => { setLapse(null); }, [aoiKey]);
 
   useEffect(() => {
     const g = hotGroup.current;
@@ -180,14 +196,16 @@ export function MapPanel({ state, query, status, regions, update }: Props) {
         const [lon, lat] = f.geometry.coordinates;
         const n = p.n ?? 1;
         const fill = colorBy === "frp" ? frpC(Math.max(1, (p.frp ?? 0) / n)) : nC(n);
-        L.circleMarker([lat, lon], { renderer, radius: 1.5 + 4.5 * Math.sqrt(n / nMax), weight: 0, fillColor: fill, fillOpacity: 0.75 })
+        // small, translucent dots so dense areas build up colour instead of merging into one slab
+        L.circleMarker([lat, lon], { renderer, radius: 1 + 3.2 * Math.sqrt(n / nMax), weight: 0, fillColor: fill, fillOpacity: 0.32 + 0.5 * Math.sqrt(n / nMax) })
           .bindTooltip(`${n.toLocaleString()} detections`, { direction: "top" })
           .addTo(g);
       }
     }
   }, [hot, colorBy, showHot]);
 
-  const caption = state.month ? `Hotspots in ${ymLabel(state.month)}` : state.start || state.end ? "Hotspots in the selected dates" : "All hotspots in the record";
+  const caption = viewMonth ? `Hotspots in ${ymLabel(viewMonth)}` : state.start || state.end ? "Hotspots in the selected dates" : "All hotspots in the record";
+  const MON3 = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-haze-200 bg-white shadow-glass">
@@ -204,12 +222,51 @@ export function MapPanel({ state, query, status, regions, update }: Props) {
         <button className={`btn-ghost px-2.5 py-1 text-xs ${showHot ? "" : "opacity-60"}`} aria-pressed={showHot} onClick={() => setShowHot((v) => !v)}>
           {showHot ? "Hide" : "Show"} points
         </button>
+        {query && !lapse && (
+          <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => setLapse({ year: lastYear - 1, idx: 0, playing: true })}
+            title="Play a year of hotspots, month by month">▶ Time-lapse</button>
+        )}
         <button className="btn-primary px-3 py-1 text-xs" aria-expanded={form} onClick={() => setForm((f) => !f)}>Enter coordinates</button>
       </div>
       {form && <AoiForm onDone={() => setForm(false)} update={update} />}
       <div className="relative flex-1">
         <div ref={el} className="absolute inset-0" role="application" aria-label="Map. Use the draw tools at the top left, or the Enter coordinates button for a keyboard-friendly form." />
         <Legend colorBy={colorBy} grid={hot?.mode === "grid"} />
+        {lapse && (
+          <div className="absolute left-1/2 top-3 z-[600] w-[min(440px,calc(100%-120px))] -translate-x-1/2 rounded-2xl border border-haze-200 bg-white/90 px-4 py-3 shadow-glass backdrop-blur"
+            role="group" aria-label="Time-lapse">
+            <div className="flex items-end justify-between gap-3">
+              <div aria-live="polite">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-4">Time-lapse</div>
+                <div className="num text-[26px] font-semibold leading-none text-ink">
+                  {MON3[lapse.idx]} <span className="text-flame-600">{lapse.year}</span>
+                </div>
+              </div>
+              <div className="num text-right text-[12px] text-ink-3">
+                {hotFor === lapseMonth && hot ? <><b className="text-[15px] text-ink">{hot.count.toLocaleString()}</b> detections</> : "loading…"}
+              </div>
+            </div>
+            <div className="mt-2.5 flex items-center gap-2">
+              <button className="btn-primary h-8 w-8 justify-center p-0 text-xs" aria-label={lapse.playing ? "Pause" : "Play"}
+                onClick={() => setLapse({ ...lapse, playing: !lapse.playing, idx: !lapse.playing && lapse.idx >= 11 ? 0 : lapse.idx })}>
+                {lapse.playing ? "❚❚" : "▶"}
+              </button>
+              <div className="flex flex-1 gap-[3px]" role="radiogroup" aria-label="Month">
+                {MON3.map((m, i) => (
+                  <button key={m} role="radio" aria-checked={i === lapse.idx} aria-label={m} title={m}
+                    onClick={() => setLapse({ ...lapse, idx: i, playing: false })}
+                    className={`h-2 flex-1 rounded-full transition ${i < lapse.idx ? "bg-flame-300" : i === lapse.idx ? "bg-flame-600" : "bg-haze-200 hover:bg-haze-300"}`} />
+                ))}
+              </div>
+              <label className="sr-only" htmlFor="lapse-year">Year</label>
+              <select id="lapse-year" className="field w-auto px-2 py-1 text-xs" value={lapse.year}
+                onChange={(e) => setLapse({ year: Number(e.target.value), idx: 0, playing: true })}>
+                {Array.from({ length: lastYear - firstYear + 1 }, (_, i) => lastYear - i).map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <button className="btn-quiet px-2 py-1 text-xs" aria-label="Close time-lapse" onClick={() => setLapse(null)}>✕</button>
+            </div>
+          </div>
+        )}
         {hotErr && <div className="absolute bottom-10 left-3 rounded-lg bg-white/90 px-3 py-1.5 text-xs text-flame-700 shadow">Hotspots: {hotErr}</div>}
       </div>
     </div>

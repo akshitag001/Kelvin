@@ -76,7 +76,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://localhost:5173")
     ap.add_argument("--only", nargs="*")
-    ap.add_argument("--wait-ms", type=int, default=14000, help="virtual time for tiles and charts to settle")
+    ap.add_argument("--wait-ms", type=int, default=22000, help="virtual time for tiles, charts and count-ups to settle")
     a = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     exe = browser()

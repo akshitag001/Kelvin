@@ -37,6 +37,7 @@ export function StatusBanner({ s, name }: { s: Summary; name: string }) {
         )}
       </div>
       <div className="mt-4 flex flex-wrap gap-2 text-[11.5px]">
+        {c?.off_season && <Chip title="The usual count for these days is tiny, so ratios swing widely">off-season · small counts</Chip>}
         <Chip>{full(s.aoi.area_km2)} km² · {full(s.aoi.cells)} active cells</Chip>
         {h.k && <Chip title="VIIRS-to-MODIS scale factor used for this area (90% interval)">k = {h.k.toFixed(2)} [{h.k_lo?.toFixed(2)}–{h.k_hi?.toFixed(2)}]</Chip>}
         {h.cv?.wmape != null && <Chip title="Leave-one-year-out validation error for this region">validation error {pct(h.cv.wmape)}</Chip>}
