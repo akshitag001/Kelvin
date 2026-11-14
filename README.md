@@ -26,10 +26,6 @@
   <img src="docs/screenshots/home.png" alt="KELVIN home screen: animated satellites around Earth and a leaderboard of the most unusual fire regions right now" width="100%" />
 </p>
 
-> [!NOTE]
-> The screenshots show **synthetic demo data** while our real FIRMS download finishes. The app says so in a banner on every screen and in every CSV. Nothing synthetic is presented as real.
-
----
 
 ## 🔥 The problem in one picture
 
