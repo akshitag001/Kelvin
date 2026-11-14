@@ -36,20 +36,50 @@ class Firms:
                                    headers={"User-Agent": "KELVIN/1.0 (NASA Space Apps 2026)"})
         self._pause_until = 0.0
         self._lock = threading.Lock()
+        self._calls = 0
+        self.key_ok = False  # set after the first successful call
+
+    # FIRMS meters a key at ~5000 transactions / 10 min, and one area request can cost
+    # several transactions. Over the limit it answers "Invalid MAP_KEY" (HTTP 400), not 429,
+    # so every few calls we look at the key's usage and pause all workers before the limit.
+    def _budget_check(self) -> None:
+        with self._lock:
+            self._calls += 1
+            if self._calls % 20:
+                return
+        self._wait_for_budget(high=0.85)
+
+    def _wait_for_budget(self, high: float, log: Callable[[str], None] | None = None) -> None:
+        while True:
+            st = self.key_status()
+            used, limit = st.get("current_transactions"), st.get("transaction_limit")
+            if not isinstance(used, (int, float)) or not limit or used < high * limit:
+                return
+            with self._lock:
+                self._pause_until = max(self._pause_until, time.time() + 60)
+            (log or print)(f"  FIRMS key at {used}/{limit} transactions; pausing 60 s for the 10-minute window to roll over")
+            time.sleep(60)
 
     def _get(self, path: str) -> str:
         delay = 2.0
+        is_status = path.startswith("/mapserver/mapkey_status")
         for attempt in range(self.retries + 1):
             wait = self._pause_until - time.time()
-            if wait > 0:
+            if wait > 0 and not is_status:
                 time.sleep(wait)
             try:
                 r = self.client.get(path)
                 body = r.text
-                if r.status_code == 429 or "exceeding allowed transaction limit" in body.lower():
-                    with self._lock:  # back off every worker together
-                        self._pause_until = max(self._pause_until, time.time() + 60 * (attempt + 1))
+                over = r.status_code == 429 or "exceeding allowed transaction limit" in body.lower()
+                if not over and not is_status and "invalid map_key" in body.lower():
+                    st = self.key_status()  # a known-good key turning "invalid" = the limit was hit
+                    used, limit = st.get("current_transactions"), st.get("transaction_limit")
+                    over = isinstance(used, (int, float)) and bool(limit) and used >= 0.95 * limit
+                if over:
+                    self._wait_for_budget(high=0.6)
                     continue
+                if r.status_code == 200 and not is_status:
+                    self.key_ok = True
                 if r.status_code >= 500:
                     raise httpx.HTTPStatusError("server error", request=r.request, response=r)
                 if r.status_code != 200:
@@ -74,6 +104,7 @@ class Firms:
             return {"error": str(exc)}
 
     def area(self, source: str, bbox: tuple[float, float, float, float], start: date, days: int) -> str:
+        self._budget_check()
         b = ",".join(f"{v:g}" for v in bbox)
         return self._get(f"/api/area/csv/{self.key}/{source}/{b}/{days}/{start.isoformat()}")
 
@@ -131,6 +162,7 @@ def run(region_ids: list[str] | None = None, sources: list[str] | None = None, s
         max_priority: int = 0, nrt_only: bool = False, days_back: int = 15, log: Callable[[str], None] = print) -> int:
     cfg = config.settings()["fetch"]
     f = Firms(config.map_key() or "")
+    f._wait_for_budget(high=0.5, log=log)  # over the limit, FIRMS rejects even the availability call
     av = _avail_ranges(f.availability())
     regs = config.regions()
     ids = region_ids or [rid for rid, r in sorted(regs.items(), key=lambda x: x[1].priority) if r.priority <= max_priority]
@@ -163,6 +195,7 @@ def run(region_ids: list[str] | None = None, sources: list[str] | None = None, s
     log(f"{len(jobs):,} chunks to download for {', '.join(ids)} with {cfg['workers']} workers")
     if not jobs:
         return 0
+    f._wait_for_budget(high=0.5, log=log)  # start with room in the 10-minute window
     done, failed, rows, t0 = 0, 0, 0, time.time()
 
     def work(job):
