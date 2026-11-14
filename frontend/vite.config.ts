@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: { "/api": { target: "http://127.0.0.1:8000", changeOrigin: true } },
+    // scripts/dev.py sets KELVIN_API_PORT when 8000 is taken by something else
+    proxy: { "/api": { target: `http://127.0.0.1:${process.env.KELVIN_API_PORT || 8000}`, changeOrigin: true } },
   },
   build: {
     outDir: "dist",
