@@ -1,0 +1,51 @@
+# Pilot regions. bbox = [west, south, east, north] in degrees.
+# priority: 0 = always load first, 1 = next, 2 = heavy / optional.
+# demo: parameters used only by `kelvin demo-data` (synthetic seasonality).
+regions:
+  punjab_haryana:
+    name: Punjab & Haryana, India
+    story: Punjab stubble-burning season
+    blurb: Crop-residue burning after the rice harvest, peaking October to November.
+    bbox: [73.8, 27.6, 77.6, 32.6]
+    priority: 0
+    demo: {peaks: [[10.9, 0.55, 1.0], [5.0, 0.6, 0.35]], annual: 9000, trend: 0.004}
+  uttarakhand:
+    name: Uttarakhand, India
+    story: Himalayan fire season, Uttarakhand
+    blurb: Himalayan chir-pine forest fires in the dry pre-monsoon months, April to June.
+    bbox: [77.5, 28.7, 81.1, 31.5]
+    priority: 0
+    demo: {peaks: [[5.0, 0.75, 1.0]], annual: 5000, trend: 0.010}
+  odisha_central:
+    name: Central Odisha, India
+    story: Odisha forest fire season
+    blurb: Forest-floor and agricultural fire in the dry season, February to April.
+    bbox: [81.3, 17.8, 87.5, 22.6]
+    priority: 0
+    demo: {peaks: [[3.4, 0.7, 1.0]], annual: 8000, trend: 0.002}
+  california:
+    name: California, USA
+    story: California wildfire season
+    blurb: Summer and autumn wildfires, with large year-to-year swings.
+    bbox: [-124.6, 32.4, -114.0, 42.1]
+    priority: 1
+    demo: {peaks: [[8.6, 1.1, 1.0]], annual: 5000, trend: 0.022, volatility: 0.55}
+  australia_southeast:
+    name: Southeast Australia
+    story: Australia's Black Summer
+    blurb: Austral-summer bushfires; the 2019-20 Black Summer stands out in the record.
+    bbox: [140.0, -39.2, 154.0, -28.0]
+    priority: 1
+    demo: {peaks: [[12.6, 1.0, 1.0]], annual: 5500, trend: 0.006, volatility: 0.5, spikes: {2019: 4.5, 2020: 2.2, 2003: 2.0, 2009: 1.8}}
+  india_all:
+    name: India (all)
+    blurb: Whole-country view. Heavy download; use the FIRMS archive import.
+    bbox: [68.0, 6.5, 97.5, 37.1]
+    priority: 1
+    demo: null
+  amazon_arc:
+    name: Amazon arc of deforestation
+    blurb: Southern Amazon burning season, August to October. Heavy; coarse tiles.
+    bbox: [-62.0, -15.0, -50.0, -5.0]
+    priority: 2
+    demo: null

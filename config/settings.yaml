@@ -1,0 +1,36 @@
+# KELVIN settings. Every value here is a documented default, see docs/METHODOLOGY.md.
+harmonization:
+  version: "kelvin-h1.0"
+  # Calibration window. Ends in 2021 because the MODIS orbits (Terra, then Aqua)
+  # have drifted from their nominal overpass times since about 2022.
+  calibration_start: "2012-02-01"
+  calibration_end: "2021-12-31"
+  # From this date on, the harmonized series is k * VIIRS; before it, MODIS.
+  switch_date: "2022-01-01"
+  # Shrinkage strength: a block-season with this many VIIRS cell-days gets
+  # half its weight from its own ratio and half from the parent level.
+  shrinkage_n0: 400
+  bootstrap_samples: 300
+  bootstrap_interval: 0.90
+  # Terra-only period: MODIS before Aqua's first full month.
+  aqua_first_full_month: "2002-08"
+  terra_factor_years: [2003, 2004, 2005, 2006]
+
+cleaning:
+  drop_low_confidence: true
+  modis_low_below: 30
+  modis_high_from: 80
+  keep_types: [0]
+
+fetch:
+  workers: 6
+  day_range: 5
+  tile_degrees: 10
+  max_retries: 5
+  timeout_seconds: 90
+
+api:
+  max_aoi_area_km2: 6000000
+  cache_size: 256
+  max_raw_points: 4000
+  csv_max_rows: 2000000
