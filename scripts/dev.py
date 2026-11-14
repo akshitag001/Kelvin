@@ -62,6 +62,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--prod", action="store_true", help="build the frontend and serve from one process")
     ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--reload", action="store_true", help="restart the API when backend code changes (can be flaky on Windows)")
     args = ap.parse_args()
     py = venv_python()
     ensure_data(py)
@@ -78,7 +79,8 @@ def main() -> int:
     ui_port = pick_port(5173, "the web app")
     flags = subprocess.CREATE_NEW_PROCESS_GROUP if IS_WIN else 0
     procs = [
-        subprocess.Popen([py, "-m", "kelvin", "serve", "--port", str(args.port), "--reload"], cwd=ROOT, env=env, creationflags=flags),
+        subprocess.Popen([py, "-m", "kelvin", "serve", "--port", str(args.port)] + (["--reload"] if args.reload else []),
+                         cwd=ROOT, env=env, creationflags=flags),
         subprocess.Popen([npm(), "run", "dev", "--", "--port", str(ui_port), "--strictPort"], cwd=FRONT, env=env, creationflags=flags),
     ]
     print(f"\n  KELVIN dev servers starting\n  App:  http://localhost:{ui_port}\n  API:  http://127.0.0.1:{args.port}/docs\n  Ctrl+C to stop\n", flush=True)
