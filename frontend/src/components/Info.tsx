@@ -61,7 +61,7 @@ export function Footer({ status, onMethod, onLimits }: { status: Status | null; 
           <button className="underline-offset-2 hover:text-ink hover:underline" onClick={onMethod}>Methodology</button>
           <button className="underline-offset-2 hover:text-ink hover:underline" onClick={onLimits}>Limitations</button>
           <a className="underline-offset-2 hover:text-ink hover:underline" href="https://github.com/akshitag001/Kelvin">Source</a>
-          <span className="num">v{status?.version ?? "1.0.0"} · NASA Space Apps 2026</span>
+          <span className="num">v{status?.version ?? "1.0.0"} · NASA Space Apps 2026 · Team Citadel, Rashtriya Raksha University</span>
         </div>
       </div>
     </footer>

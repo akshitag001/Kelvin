@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="frontend/public/favicon.svg" width="88" alt="KELVIN logo" />
-
-# KELVIN
+<img src="docs/kelvin-logo.png" width="520" alt="KELVIN" />
 
 ### Earth's heat, measured from orbit.
 
@@ -323,6 +321,21 @@ docs/             METHODOLOGY · DECISIONS · DATA_SOURCES · DEMO_SCRIPT · AI_
 Fire data: **NASA FIRMS** (LANCE/EOSDIS), MODIS Collection 6.1 and VIIRS 375 m active fire products. *NASA does not endorse this project.*
 Basemaps © Esri, HERE, Garmin, © OpenStreetMap contributors · Geocoding by Nominatim (OpenStreetMap).
 
+---
+
+## 👥 Team Citadel
+
+**Rashtriya Raksha University**
+
+- Ria Wandra
+- Akshit Agarwal
+- Sarthak Sanay
+- Mudit Srivastav
+- Rohit Anand
+
 <div align="center">
-<sub>Built for NASA Space Apps Challenge 2026 by <a href="https://github.com/akshitag001">akshitag001</a></sub>
+<br/>
+<img src="docs/kelvin-logo.png" width="220" alt="KELVIN" />
+<br/>
+<sub>Built by Team Citadel for NASA Space Apps Challenge 2026</sub>
 </div>

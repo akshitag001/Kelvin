@@ -21,7 +21,8 @@ SHOTS = {
     # name: (path + query, width, height)
     "home": ("/", 1440, 1640),
     "calendar": ("/?r=punjab_haryana", 1440, 1180),
-    "daily": ("/?r=punjab_haryana&month=2023-11", 1440, 1560),
+    # tall enough that the daily card is already on screen, so the page doesn't auto-scroll
+    "daily": ("/?r=punjab_haryana&month=2023-11", 1440, 2500),
     "seasons": ("/?r=uttarakhand&tab=seasons", 1440, 1080),
     "trends": ("/?r=punjab_haryana&tab=trends", 1440, 1240),
     "harmonization": ("/?r=punjab_haryana&tab=harmonization", 1440, 1500),
@@ -48,6 +49,29 @@ def browser() -> str:
     sys.exit("No Edge or Chrome found for headless screenshots.")
 
 
+def crop_banner(path: Path) -> None:
+    """Remove the yellow demo-data strip from the top of a README screenshot, if present.
+
+    The app itself always shows the banner in demo mode; the README states separately
+    that its screenshots use demo data. Needs Pillow (pip install pillow); skipped without it.
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        return
+    im = Image.open(path).convert("RGB")
+    r, g, b = im.getpixel((5, 0))
+    if not (r > 240 and 225 < g < 255 and b < 215):  # not the amber banner
+        return
+    y = 0
+    while y < min(80, im.height):
+        r, g, b = im.getpixel((5, y))
+        if b > 235 and abs(r - b) < 12:  # reached the page background
+            break
+        y += 1
+    im.crop((0, y, im.width, im.height)).save(path, optimize=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://localhost:5173")
@@ -65,6 +89,8 @@ def main() -> int:
                    "--force-device-scale-factor=1", f"--user-data-dir={profile}", f"--window-size={w},{h}",
                    f"--virtual-time-budget={a.wait_ms}", f"--screenshot={target}", a.base + path]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+        if target.exists():
+            crop_banner(target)
         print(f"{'ok ' if target.exists() else 'FAILED'} {target.relative_to(ROOT)}", flush=True)
     return 0
 

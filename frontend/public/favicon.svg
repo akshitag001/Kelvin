@@ -1,10 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="h" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0" stop-color="#FDE68A"/><stop offset=".45" stop-color="#F79009"/><stop offset="1" stop-color="#B42318"/>
+    <linearGradient id="swoosh" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7821B"/>
+      <stop offset=".45" stop-color="#F7821B"/>
+      <stop offset=".62" stop-color="#1D4E9E"/>
+      <stop offset="1" stop-color="#0B3F91"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="16" fill="#F7F8FC"/>
-  <ellipse cx="32" cy="32" rx="26" ry="10" fill="none" stroke="#5B6CF0" stroke-width="2" opacity=".5" transform="rotate(-24 32 32)"/>
-  <path d="M22 14v36M22 34l18-20M27 29l14 21" fill="none" stroke="url(#h)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="64" height="64" rx="14" fill="#FFFFFF"/>
+  <!-- orbit swoosh, tapered: open on the right like the KELVIN logo -->
+  <path d="M46 13C28 12 6 23 5 37c-1 12 16 17 37 10C24 50 11 46 12 37c1-10 16-20 34-24z" fill="url(#swoosh)"/>
+  <!-- four-point star -->
+  <path d="M51 5l2 6.2 6.2 1.8-6.2 1.8L51 21l-2-6.2-6.2-1.8 6.2-1.8z" fill="#F7821B"/>
+  <!-- K -->
+  <path d="M25 23v21M25 34l12-11M29.5 31l9.5 13" fill="none" stroke="#0B1B3F" stroke-width="4.2" stroke-linecap="square"/>
 </svg>
