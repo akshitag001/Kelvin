@@ -37,7 +37,7 @@ def _iter_raw(use_demo: bool) -> Iterator[tuple[str, str | None, str | None, pd.
         for f in sorted((raw / source).rglob("*.csv")):
             if f.stat().st_size < 60:
                 continue
-            region = f.parent.name
+            region = f.relative_to(raw / source).parts[0]  # raw/{source}/{region}/{tile}/{window}.csv
             for chunk in pd.read_csv(f, chunksize=CHUNK_ROWS, low_memory=False):
                 yield f"{source}/{region}/{f.name}", sat, product, chunk, {"kind": "region", "region": region}
     manual = raw / "manual"
